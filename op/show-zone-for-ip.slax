@@ -1,0 +1,58 @@
+/*
+ *
+ * NAME: show-zone-for-ip.slax
+ * PURPOSE: Created to find the security zone that an IP address lives in.
+ *
+ */
+ 
+ version 1.0;
+ ns junos = "http://xml.juniper.net/junos/*/junos";
+ ns xnm = "http://xml.juniper.net/xnm/1.1/xnm";
+ ns jcs = "http://xml.juniper.net/junos/commit-scripts/1.0";
+ import "../import/junos.xsl";
+ var $arguments = {
+     <argument> {
+         <name> "ip";
+         <description> "IP address you are searching for";
+     }
+ }
+ param $ip;
+ 
+ match / {
+    <op-script-results> {
+    
+        if (jcs:empty($ip)) {
+            <xsl:message terminate="yes"> "Please specify the IP address.";
+        } 
+    
+        var $rpc = <get-route-information> {
+            <destination> $ip;
+            <best>;
+        }   
+        var $route-output = jcs:invoke($rpc);
+        var $rpc2 = <get-zones-information>;
+        var $zone-output = jcs:invoke($rpc2);
+    
+        var $format = "%s %-20s %-15s %-15s %s";
+    
+        var $header = jcs:printf($format, " ", "Matching Route", "NH Interface", "Route Table", "Security Zone");
+        <output> $header;
+    
+        for-each ($route-output/route-table) {
+            var $route-table = ./table-name;
+            var $route = ./rt/rt-destination;
+
+            for-each (./rt/rt-entry/nh) {
+                var $route-interface = ./via;
+                /* Find security zone */
+                for-each ($zone-output/zones-security/zones-security-interfaces) {
+                    if (./zones-security-interface-name == $route-interface ) {
+                        var $zone = ../zones-security-zonename;
+                        var $line = jcs:printf($format, " ", $route, $route-interface, $route-table, $zone);
+                            <output> $line;
+                    }
+                }
+            }
+        }
+    }
+}
