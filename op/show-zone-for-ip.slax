@@ -3,9 +3,16 @@
  * NAME: show-zone-for-ip.slax
  * PURPOSE: Created to find the security zone that an IP address lives in.
  *
+ * Changelog:
+ *  v1.1: 
+ *      * Fixed issue when used on a clustered SRX
+ *      * Increaed the IP column for IPv6 valuestoa
+ *      * Optimized lookup the zone for an interface (remoted the loop)
+ *      * Use a single RPC connection
+ *      * Added some progress information for debugging
  */
  
- version 1.0;
+ version 1.1;
  ns junos = "http://xml.juniper.net/junos/*/junos";
  ns xnm = "http://xml.juniper.net/xnm/1.1/xnm";
  ns jcs = "http://xml.juniper.net/junos/commit-scripts/1.0";
@@ -24,16 +31,25 @@
         if (jcs:empty($ip)) {
             <xsl:message terminate="yes"> "Please specify the IP address.";
         } 
-    
-        var $rpc = <get-route-information> {
+
+        var $get-route-info-rpc = <get-route-information> {
             <destination> $ip;
             <best>;
         }   
-        var $route-output = jcs:invoke($rpc);
-        var $rpc2 = <get-zones-information>;
-        var $zone-output = jcs:invoke($rpc2);
+        var $get-zone-info-rpc = <get-zones-information>;
+
+        expr jcs:progress("Opening RPC connection.");
+        var $conn = jcs:open();
+
+        expr jcs:progress("Getting 'show route' output");
+        var $route-output = jcs:execute($conn, $get-route-info-rpc);
+
+        expr jcs:progress("Getting 'show security zones' output");
+        var $zone-output = jcs:execute($conn, $get-zone-info-rpc);
+
+        expr jcs:close($conn);
     
-        var $format = "%s %-20s %-15s %-15s %s";
+        var $format = "%s %-30s %-15s %-15s %s";
     
         var $header = jcs:printf($format, " ", "Matching Route", "NH Interface", "Route Table", "Security Zone");
         <output> $header;
@@ -45,12 +61,10 @@
             for-each (./rt/rt-entry/nh) {
                 var $route-interface = ./via;
                 /* Find security zone */
-                for-each ($zone-output/zones-security/zones-security-interfaces) {
-                    if (./zones-security-interface-name == $route-interface ) {
-                        var $zone = ../zones-security-zonename;
-                        var $line = jcs:printf($format, " ", $route, $route-interface, $route-table, $zone);
-                            <output> $line;
-                    }
+                if ($zone-output//zones-security/zones-security-interfaces/zones-security-interface-name == $route-interface) {
+                    var $zone = ../zones-security-zonename;
+                    var $line = jcs:printf($format, " ", $route, $route-interface, $route-table, $zone);
+                        <output> $line;
                 }
             }
         }
