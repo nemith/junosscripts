@@ -12,6 +12,9 @@
  *      * Added some progress information for debugging
  *  v1.1.1:
  *      * Fixed stupid bug in matching a zone interface
+ *  v1.2:
+ *      * Allow for the specified IP address to be a local IP address on 
+ *        the firewall
  */
  
  version 1.0;
@@ -61,7 +64,7 @@
             var $route = ./rt/rt-destination;
 
             for-each (./rt/rt-entry/nh) {
-                var $route-interface = ./via;
+                var $route-interface = jcs:first-of(./via, ./nh-local-interface, "");
                 /* Find security zone */
                 var $zone-name = $zone-output//zones-security[zones-security-interfaces/zones-security-interface-name == $route-interface]/zones-security-zonename;
                 var $line = jcs:printf($format, " ", $route, $route-interface, $route-table, $zone-name);
