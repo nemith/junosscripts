@@ -4,7 +4,7 @@ Junos routers do not support a range to be excluded from the dynamic dhcp pool i
 addition static-bindings must be inside the dynamic range for a pool.  This means
 you cannot reserve a section of the dhcp range to be used only for static-bindings.
 For example you may want 172.16.1.32-47 to be reserved for static bindings only and
-have static bindings start at 48.
+have dyanmic bindings start at 48.
 
 This script mimicks the desired behavior by doing tranient change on commit that 
 has fake static-bidings to "reserve" the range for future static-bindings.  If
